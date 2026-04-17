@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Notebook</title>
+
+<!-- Google Font -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- CSS LINK (IMPORTANT) -->
+<link rel="stylesheet" href="./style.css" />
+
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <h2>📒 AI Notebook</h2>
+
+    <button class="new-btn" onclick="newChat()">
+      + New Chat
+    </button>
+
+    <div class="files">
+      <p>Uploaded Files</p>
+      <ul id="fileList"></ul>
+    </div>
+
+  </div>
+
+  <!-- MAIN AREA -->
+  <div class="main">
+
+    <!-- HEADER -->
+    <div class="header">
+      Smart Document AI Chat
+    </div>
+
+    <!-- CHAT BOX -->
+    <div class="chat" id="chatBox">
+      <div class="message bot">
+        👋 Welcome! Upload a file and start asking questions.
+      </div>
+    </div>
+
+    <!-- INPUT AREA -->
+    <div class="input-area">
+
+      <!-- FILE UPLOAD -->
+      <input type="file" id="fileInput" onchange="handleFile()" />
+
+      <!-- TEXT INPUT -->
+      <input type="text" id="question" placeholder="Ask something..." />
+
+      <!-- SEND BUTTON -->
+      <button onclick="sendMessage()">Send</button>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- JS LINK (IMPORTANT) -->
+<script src="./script.js"></script>
+
+</body>
+</html>
