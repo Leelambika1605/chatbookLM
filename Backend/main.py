@@ -17,7 +17,12 @@ client = OpenAI(
     base_url="https://openrouter.ai/api/v1"
 )
 
-app = FastAPI()
+# ✅ FIX: Enable docs explicitly
+app = FastAPI(
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
+)
 
 # =========================
 # CORS
@@ -80,7 +85,6 @@ async def upload_pdf(file: UploadFile = File(...)):
     global document_chunks
 
     contents = await file.read()
-
     filename = f"{uuid.uuid4()}.pdf"
 
     with open(filename, "wb") as f:
@@ -92,7 +96,7 @@ async def upload_pdf(file: UploadFile = File(...)):
     for page in doc:
         text += page.get_text()
 
-    # FIX: close before delete
+    # ✅ FIX: close before delete
     doc.close()
     os.remove(filename)
 
@@ -143,7 +147,7 @@ async def ask_question(question: str):
 
         scored_chunks.sort(reverse=True, key=lambda x: x[0])
 
-        # ✅ FIX: removed strict 0.7 filter
+        # ✅ FIX: take top 5 directly
         top_chunks = [text for _, text in scored_chunks[:5]]
 
         context = "\n\n".join(top_chunks)
