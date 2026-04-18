@@ -1,3 +1,8 @@
+// =============================
+// 🔥 IMPORTANT: BACKEND URL
+// =============================
+const API_URL = "https://chatbooklm-r8qd.onrender.com";
+
 // -----------------------------
 // Smooth scroll to bottom
 // -----------------------------
@@ -57,15 +62,19 @@ async function handleFile() {
   formData.append("file", file);
 
   try {
-    const res = await fetch("http://localhost:8000/upload", {
+    const res = await fetch(`${API_URL}/upload`, {
       method: "POST",
       body: formData
     });
 
-    if (!res.ok) throw new Error("Upload failed");
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || "Upload failed");
+
+    console.log("Upload success:", data);
 
   } catch (err) {
-    alert("File upload failed");
+    alert("❌ File upload failed");
     console.error(err);
   }
 }
@@ -97,7 +106,7 @@ async function sendMessage() {
   const loader = animateDots(botMsg);
 
   try {
-    const res = await fetch("http://localhost:8000/ask", {
+    const res = await fetch(`${API_URL}/ask`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -105,18 +114,18 @@ async function sendMessage() {
       body: JSON.stringify({ question: text })
     });
 
-    if (!res.ok) throw new Error("Server error");
-
     const data = await res.json();
 
     clearInterval(loader);
+
+    if (!res.ok) throw new Error(data.error || "Server error");
 
     // AI response typing effect
     typeText(botMsg, data.answer || "No response");
 
   } catch (err) {
     clearInterval(loader);
-    botMsg.innerText = "Error: Cannot connect to server";
+    botMsg.innerText = "❌ Error: Cannot connect to server";
     console.error(err);
   }
 
