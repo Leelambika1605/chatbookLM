@@ -1,20 +1,37 @@
 from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 import fitz
 import numpy as np
+import os
+import uuid
+from dotenv import load_dotenv
 from openai import OpenAI
 
 # =========================
-# CLIENT (OpenRouter)
+# LOAD ENV
 # =========================
+load_dotenv()
+
 client = OpenAI(
-    api_key="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",
+    api_key=os.getenv("OPENROUTER_API_KEY"),
     base_url="https://openrouter.ai/api/v1"
 )
 
 app = FastAPI()
 
 # =========================
-# MEMORY STORAGE
+# CORS
+# =========================
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# =========================
+# MEMORY
 # =========================
 document_chunks = []
 
@@ -24,17 +41,14 @@ document_chunks = []
 def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200):
     chunks = []
     start = 0
-
     while start < len(text):
         end = start + chunk_size
         chunks.append(text[start:end])
         start += chunk_size - overlap
-
     return chunks
 
-
 # =========================
-# EMBEDDING FUNCTION
+# EMBEDDING
 # =========================
 def get_embedding(text: str):
     response = client.embeddings.create(
@@ -43,15 +57,13 @@ def get_embedding(text: str):
     )
     return response.data[0].embedding
 
-
 # =========================
-# COSINE SIMILARITY
+# SIMILARITY
 # =========================
 def cosine_similarity(a, b):
     a = np.array(a)
     b = np.array(b)
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-
 
 # =========================
 # HOME
@@ -60,9 +72,8 @@ def cosine_similarity(a, b):
 def home():
     return {"message": "Backend is running 🚀"}
 
-
 # =========================
-# UPLOAD PDF
+# UPLOAD
 # =========================
 @app.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
@@ -70,40 +81,40 @@ async def upload_pdf(file: UploadFile = File(...)):
 
     contents = await file.read()
 
-    # Save PDF temporarily
-    with open("temp.pdf", "wb") as f:
+    filename = f"{uuid.uuid4()}.pdf"
+
+    with open(filename, "wb") as f:
         f.write(contents)
 
-    # Open PDF
-    doc = fitz.open("temp.pdf")
+    doc = fitz.open(filename)
     text = ""
 
-    # Extract text
     for page in doc:
         text += page.get_text()
 
-    # Safety check (IMPORTANT)
+    # FIX: close before delete
+    doc.close()
+    os.remove(filename)
+
     if not text.strip():
         return {"error": "PDF has no readable text"}
 
-    # Chunk text
     chunks = chunk_text(text)
+    chunks = chunks[:100]
 
-    # Limit chunks for performance
-    chunks = chunks[:200]
-
-    # Convert to embeddings
     document_chunks = []
 
     for chunk in chunks:
-        embedding = get_embedding(chunk)
-
-        # skip failed embeddings
-        if embedding:
+        try:
+            embedding = get_embedding(chunk)
             document_chunks.append({
                 "text": chunk,
                 "embedding": embedding
             })
+        except:
+            continue
+
+    print("Chunks stored:", len(document_chunks))
 
     return {
         "filename": file.filename,
@@ -112,7 +123,7 @@ async def upload_pdf(file: UploadFile = File(...)):
     }
 
 # =========================
-# ASK QUESTION (REAL RAG)
+# ASK
 # =========================
 @app.post("/ask")
 async def ask_question(question: str):
@@ -122,24 +133,21 @@ async def ask_question(question: str):
         if not document_chunks:
             return {"error": "No document uploaded yet."}
 
-        # Query embedding
         query_embedding = get_embedding(question)
 
-        # Score chunks
         scored_chunks = []
 
         for item in document_chunks:
             score = cosine_similarity(query_embedding, item["embedding"])
             scored_chunks.append((score, item["text"]))
 
-        # Sort by relevance
         scored_chunks.sort(reverse=True, key=lambda x: x[0])
 
-        # Top 5 chunks
+        # ✅ FIX: removed strict 0.7 filter
         top_chunks = [text for _, text in scored_chunks[:5]]
+
         context = "\n\n".join(top_chunks)
 
-        # AI response
         response = client.chat.completions.create(
             model="meta-llama/llama-3-8b-instruct",
             messages=[
